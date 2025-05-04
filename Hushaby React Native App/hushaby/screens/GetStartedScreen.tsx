@@ -37,12 +37,12 @@ const GetStartedScreen = () => {
   const styles = StyleSheet.create({
     container: {
         flex: 1, 
-        justifyContent: "space-between"
+        justifyContent: "space-between",
+        paddingVertical: "10%"
     },
     header: {
         flex: 0.25,
         alignItems: "center",
-        paddingTop: "3%"
     },
     headerText: {
         fontFamily: "Poppins_700Bold",
@@ -68,7 +68,6 @@ const GetStartedScreen = () => {
         shadowOffset: { width: 0, height: 3 },
         shadowOpacity: 0.2,
         shadowRadius: 4,
-        elevation: 4,                   // For Android shadow
         marginVertical: 8,
       },
       buttonText: {
