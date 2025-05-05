@@ -37,7 +37,7 @@ export default function App() {
   }
   return (
     <SafeAreaProvider>  
-      {/* <NavigationContainer onReady={onLayoutRootView}>
+      <NavigationContainer onReady={onLayoutRootView}>
       <Stack.Navigator initialRouteName="GetStarted" screenOptions={{
         headerShown: false,
         gestureEnabled: true,
@@ -60,8 +60,8 @@ export default function App() {
           options={{ title: 'Dashboard' }}
         />
       </Stack.Navigator>
-    </NavigationContainer> */}
-    <DashboardScreen/>
+    </NavigationContainer>
+    {/* <DashboardScreen/> */}
     </SafeAreaProvider>
 
   );
