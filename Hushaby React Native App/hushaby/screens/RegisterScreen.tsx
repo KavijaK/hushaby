@@ -12,8 +12,13 @@ import {
     TouchableWithoutFeedback,
     KeyboardAvoidingView,
     Platform,
+    ActivityIndicator,
 } from "react-native";
 import { useState } from "react";
+import { createUserWithEmailAndPassword } from "firebase/auth";
+import { FIREBASE_AUTH, FIREBASE_DB } from "../FirebaseConfig";
+import { doc, setDoc } from "firebase/firestore";
+
 const backdrop = require("../assets/getstarted.webp");
 
 const RegisterScreen = () => {
@@ -23,6 +28,42 @@ const RegisterScreen = () => {
     const [password, setPassword] = useState("");
     const [confirmPassword, setConfirmPassword] = useState("");
     const [babyName, setBabyName] = useState("");
+    const [loading, setLoading] = useState(false);
+
+    const handleRegister = async () => {
+        // Field validation
+        if (!parentName || !email || !password || !confirmPassword || !babyName) {
+            console.error("All fields are required.");
+            return;
+        }
+    
+        if (password !== confirmPassword) {
+            console.error("Passwords do not match.");
+            return;
+        }
+        
+        setLoading(true);
+        try {
+            const userCredential = await createUserWithEmailAndPassword(FIREBASE_AUTH, email, password);
+            const user = userCredential.user;
+            console.log("User registered:", user);
+    
+            // Save extra info in Firestore
+            await setDoc(doc(FIREBASE_DB, "users", user.uid), {
+                uid: user.uid,
+                email: user.email,
+                parentName: parentName,
+                babyName: babyName,
+                createdAt: new Date().toISOString(),
+            });
+    
+            navigation.navigate("Login");
+        } catch (error: any) {
+            console.error("Registration failed:", error.code, error.message);
+        } finally {
+            setLoading(false);
+        }
+    };
 
     return (
         <ImageBackground source={backdrop} resizeMode="cover" style={styles.container}>
@@ -86,9 +127,10 @@ const RegisterScreen = () => {
                                 <TouchableOpacity
                                     activeOpacity={0.85}
                                     style={styles.registerButton}
-                                    onPress={() => {/* handle registration here */}}
+                                    onPress={handleRegister}
                                 >
-                                    <Text style={styles.registerButtonText}>Register</Text>
+                                    <Text style={{...styles.registerButtonText, display: loading ? "none": "flex"}}>Register</Text>
+                                    <ActivityIndicator style={{display: !loading ? "none" : "flex"}} size="large" color="#fff" />
                                 </TouchableOpacity>
                             </View>
                             <View style={styles.bottomLinks}>
@@ -162,7 +204,7 @@ const styles = StyleSheet.create({
     registerButton: {
         backgroundColor: "#4E598C",
         borderRadius: 30,
-        paddingVertical: 13,
+        height: 60,
         width: "80%",
         alignItems: "center",
         justifyContent: "center",

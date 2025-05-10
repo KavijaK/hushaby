@@ -1,15 +1,30 @@
 import React, { useState } from "react";
 import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, Switch, Image } from "react-native";
-import { Ionicons, MaterialCommunityIcons, FontAwesome5 } from "@expo/vector-icons";
+import { Ionicons, MaterialCommunityIcons, FontAwesome5, MaterialIcons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
+import { useNavigation } from "@react-navigation/native";
+import { FIREBASE_AUTH } from "../FirebaseConfig";
+import { signOut } from "firebase/auth";
 
 const cradleImg = require("../assets/dashboard_vector.png");
 const profilePicture = require("../assets/profile.webp");
 
 const DashboardScreen = () => {
+  const navigation = useNavigation();
   const [fanOn, setFanOn] = useState(true);
   const [fanSpeed, setFanSpeed] = useState(48); // percent
   const diaperWetness = 82; // percent
+
+  
+const handleLogout = async () => {
+  try {
+    await signOut(FIREBASE_AUTH);
+    console.log("User logged out");
+    // No need to manually navigate — your AuthContext will handle it
+  } catch (error: any) {
+    console.error("Logout failed:", error.message);
+  }
+};
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -91,13 +106,16 @@ const DashboardScreen = () => {
             </View>
           </TouchableOpacity>
   
-          <TouchableOpacity style={[styles.cardSquare, styles.musicCard]} activeOpacity={0.70}>
+          <TouchableOpacity onPress={() => navigation.navigate("Music")} style={[styles.cardSquare, styles.musicCard]} activeOpacity={0.70}>
             <View style={[styles.circle, { backgroundColor: "#FF8C42" }]}>
               <Ionicons name="musical-notes" size={28} color="#fff" />
             </View>
             <Text style={[styles.cardLabel, { color: "#fff" }]}>Music</Text>
           </TouchableOpacity>
         </View>
+        <TouchableOpacity style={styles.logout} onPress={handleLogout} activeOpacity={0.8}>
+            <MaterialIcons name="logout" size={28} color="#fff" />
+        </TouchableOpacity>
       </View>
     </SafeAreaView>
   );
@@ -137,11 +155,10 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontSize: 32,
     paddingHorizontal: 5,
-    fontFamily: "Poppins_700Bold",
+    fontFamily: "Poppins_600SemiBold",
   },
   profileCircle: {
     backgroundColor: "#fff",
-    borderRadius: 30,
     width: 60,
     height: 60,
     alignItems: "center",
@@ -347,4 +364,14 @@ cradleImage: {
     marginBottom: 2,
     marginTop: 2,
   },
+  logout : {
+    height: 60,
+    width: 60,
+    borderRadius: 80,
+    backgroundColor: 'orange',
+    alignItems: "center",
+    justifyContent: "center",
+    alignSelf: "flex-end",
+    marginRight: 30,
+  }
 });

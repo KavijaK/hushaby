@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "407976666638",
+    "project_id": "hushaby-9524d",
+    "storage_bucket": "hushaby-9524d.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:407976666638:android:a66cfe2f403a40fef5be5f",
+        "android_client_info": {
+          "package_name": "com.hush.hushaby"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCQ3znG_QN5bSlIXRRtpGPE6fo26cEBHHA"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -12,14 +12,33 @@ import {
   ScrollView,
   Keyboard,
   TouchableWithoutFeedback,
+  ActivityIndicator,
 } from "react-native";
 import { useState } from "react";
+import { signInWithEmailAndPassword } from "firebase/auth";
+import { FIREBASE_AUTH } from "../FirebaseConfig";
+
 const backdrop = require("../assets/getstarted.webp");
 
 const LoginScreen = () => {
   const navigation = useNavigation();
-  const [username, setUsername] = useState("");
+  const [email, setEmail] = useState("");
+  const [loading, setLoading] = useState(false);
   const [password, setPassword] = useState("");
+
+  const handleLogin = async () => {
+    setLoading(true);
+    try {
+      const userCredential = await signInWithEmailAndPassword(FIREBASE_AUTH, email, password);
+      console.log('User logged in:', userCredential.user);
+    } catch (error: any) {
+      const errorCode = error.code;
+      const errorMessage = error.message;
+      console.error('Login failed:', errorCode, errorMessage);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <ImageBackground source={backdrop} resizeMode="cover" style={styles.container}>
@@ -44,8 +63,8 @@ const LoginScreen = () => {
                   style={styles.input}
                   placeholder="Email Address or Username"
                   placeholderTextColor="#BFC3D1"
-                  value={username}
-                  onChangeText={setUsername}
+                  value={email}
+                  onChangeText={setEmail}
                   autoCapitalize="none"
                   keyboardType="email-address"
                 />
@@ -60,9 +79,10 @@ const LoginScreen = () => {
                 <TouchableOpacity
                   activeOpacity={0.85}
                   style={styles.loginButton}
-                  onPress={() => {/* handle login here */}}
+                  onPress={handleLogin}
                 >
-                  <Text style={styles.loginButtonText}>Login</Text>
+                  <Text style={{...styles.loginButtonText, display: loading ? "none" : "flex"}}>Login</Text>
+                  <ActivityIndicator style={{display: !loading ? "none" : "flex"}} size="large" color="#fff" />
                 </TouchableOpacity>
                 <TouchableOpacity
                   activeOpacity={0.7}
@@ -83,7 +103,7 @@ const LoginScreen = () => {
       </SafeAreaView>
     </ImageBackground>
   );
-};
+}
 
 export default LoginScreen;
 
@@ -143,7 +163,7 @@ const styles = StyleSheet.create({
   loginButton: {
     backgroundColor: "#4E598C",
     borderRadius: 30,
-    paddingVertical: 14,
+    height: 60,
     width: "80%",
     alignItems: "center",
     justifyContent: "center",

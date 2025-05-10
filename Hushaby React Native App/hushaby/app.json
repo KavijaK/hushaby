@@ -10,7 +10,10 @@
     "splash": {
       "image": "./assets/logo.webp",
       "resizeMode": "contain",
-      "backgroundColor": "#FCAF58"
+      "backgroundColor": "#FCAF58",
+      "ios": {
+        "backgroundColor": "#FCAF58"
+      }
     },
     "ios": {
       "supportsTablet": true
