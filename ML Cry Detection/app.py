@@ -58,3 +58,7 @@ def handle_upload():
         # Always delete the file after processing
         if os.path.exists(audio_path):
             os.remove(audio_path)
+
+
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=5000)
