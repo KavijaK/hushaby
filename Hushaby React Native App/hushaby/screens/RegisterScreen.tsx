@@ -15,7 +15,7 @@ import {
     ActivityIndicator,
 } from "react-native";
 import { useState } from "react";
-import { createUserWithEmailAndPassword } from "firebase/auth";
+import { createUserWithEmailAndPassword, signOut } from "firebase/auth";
 import { FIREBASE_AUTH, FIREBASE_DB } from "../FirebaseConfig";
 import { doc, setDoc } from "firebase/firestore";
 
@@ -47,7 +47,7 @@ const RegisterScreen = () => {
             const userCredential = await createUserWithEmailAndPassword(FIREBASE_AUTH, email, password);
             const user = userCredential.user;
             console.log("User registered:", user);
-    
+            await signOut(FIREBASE_AUTH);
             // Save extra info in Firestore
             await setDoc(doc(FIREBASE_DB, "users", user.uid), {
                 uid: user.uid,
@@ -55,8 +55,16 @@ const RegisterScreen = () => {
                 parentName: parentName,
                 babyName: babyName,
                 createdAt: new Date().toISOString(),
+                cradleFanOn: false,
+                cradleFanSpeed: 0,
+                musicPlaying: false,
+                currentTrack: 1,
+                roomTemperature: 27,
+                diaperWetness: 0,
+                autoRockerOn: false,
+                isBabyCrying: false
             });
-    
+
             navigation.navigate("Login");
         } catch (error: any) {
             console.error("Registration failed:", error.code, error.message);

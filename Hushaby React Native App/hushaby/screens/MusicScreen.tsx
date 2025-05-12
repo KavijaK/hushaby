@@ -1,80 +1,133 @@
-import React from "react";
-import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity } from "react-native";
+import React, { useState } from "react";
+import { View, Text, TouchableOpacity, StyleSheet, SafeAreaView, Image, ImageBackground } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { LinearGradient } from "expo-linear-gradient";
+
+const tracks = [
+  { id: 1, label: "Lullabies & Tunes" },
+  { id: 2, label: "Soothing Song" },
+  { id: 3, label: "Bedtime Music" },
+];
+
+const musicBackground= require("../assets/music.webp");
 
 const MusicScreen = () => {
-  const tracks = [
-    { id: 1, title: "Soothing Lullaby" },
-    { id: 2, title: "Gentle Sleep Tune" },
-    { id: 3, title: "Soft Cradle Music" },
-  ];
+  const [currentTrack, setCurrentTrack] = useState<number | null>(null);
+
+  const handlePlay = (trackId: number) => {
+    setCurrentTrack(trackId === currentTrack ? null : trackId);
+    // Trigger playback logic here (or stop if trackId === currentTrack)
+  };
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <View style={styles.panel}>
-        <Text style={styles.headerTitle}>Baby Music</Text>
-        {tracks.map((track) => (
-          <TouchableOpacity key={track.id} style={styles.trackCard} activeOpacity={0.85}>
-            <View style={styles.trackContent}>
-              <Ionicons name="musical-notes" size={28} color="#fff" style={{ marginRight: 12 }} />
-              <Text style={styles.trackTitle}>{track.title}</Text>
-            </View>
-            <Ionicons name="play-circle" size={36} color="#fff" />
+    <ImageBackground source={musicBackground} resizeMode="cover" style={{flex: 1}}>
+      <SafeAreaView style={styles.container}>
+        <View style={styles.header}>
+          <Text style={styles.headerText}>Music That Cradles </Text>
+        </View>
+        <View style={styles.body}>
+          {tracks.map((track) => (
+          <TouchableOpacity
+            key={track.id}
+            style={[
+              styles.trackCard,
+              currentTrack === track.id && styles.trackCardActive,
+            ]}
+            onPress={() => handlePlay(track.id)}
+            activeOpacity={0.8}
+          >
+            <LinearGradient
+              colors={
+                currentTrack === track.id
+                  ? ["#FF8C42", "#FCAF58"]
+                  : ["#fff", "#f9dfbe"]
+              }
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={styles.trackGradient}
+            >
+              <Ionicons
+                name={currentTrack === track.id ? "pause" : "play"}
+                size={30}
+                color={currentTrack === track.id ? "#fff" : "#4E598C"}
+                style={styles.playIcon}
+              />
+              <Text
+                style={[
+                  styles.trackLabel,
+                  currentTrack === track.id && styles.trackLabelActive,
+                ]}
+              >
+                {track.label}
+              </Text>
+            </LinearGradient>
           </TouchableOpacity>
         ))}
-      </View>
-    </SafeAreaView>
+        </View>
+      </SafeAreaView>
+    </ImageBackground>
   );
 };
+
 
 export default MusicScreen;
 
 const styles = StyleSheet.create({
-  safeArea: {
+  container: {
     flex: 1,
-    backgroundColor: "#4E598C",
+    backgroundColor: "rgba(0,0,0,0.5)",
   },
-  panel: {
-    flex: 1,
-    backgroundColor: "#fff",
-    borderBottomLeftRadius: 40,
-    borderBottomRightRadius: 40,
-    marginBottom: "8%",
+  body: {
+    flex: 0.75,
+    paddingHorizontal: 20,
   },
-  headerTitle: {
-    backgroundColor: "#4E598C",
-    borderBottomLeftRadius: 40,
-    borderBottomRightRadius: 40,
+  header:{
+    flex: 0.25,
+    paddingHorizontal: 20,
+    justifyContent: 'center',
+  },
+  headerText: {
+    fontFamily: "Poppins_600SemiBold",
     fontSize: 30,
-    fontFamily: "Poppins_700Bold",
-    color: "#fff",
-    marginBottom: 20,
-    height: "10%",
-    textAlign: "center",
+    color: "white",
+    alignSelf:"center"
+  },
+  trackList: {
+    paddingTop: 30,
+    paddingHorizontal: 24,
   },
   trackCard: {
-    backgroundColor: "#FF8C42",
-    borderRadius: 22,
-    paddingVertical: 18,
+    height: 80,
+    borderRadius: 20,
+    marginBottom: 20,
+    overflow: "hidden",
+    justifyContent: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.06,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  trackGradient: {
+    flexDirection: "row",
+    alignItems: "center",
+    height: "100%",
     paddingHorizontal: 20,
-    marginHorizontal: 22,
-    marginBottom: 18,
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    shadowColor: "#FF8C42",
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.2,
-    shadowRadius: 6,
-    elevation: 4,
+    borderRadius: 15,
   },
-  trackContent: {
-    flexDirection: "row",
-    alignItems: "center",
+  playIcon: {
+    marginRight: 18,
   },
-  trackTitle: {
-    fontSize: 18,
-    color: "#fff",
+  trackLabel: {
+    fontSize: 20,
+    color: "#4E598C",
     fontFamily: "Poppins_600SemiBold",
+  },
+  trackLabelActive: {
+    color: "#fff",
+  },
+  trackCardActive: {
+    borderColor: "#FF8C42",
+    borderWidth: 2,
   },
 });

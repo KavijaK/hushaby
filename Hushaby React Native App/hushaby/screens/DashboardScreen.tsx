@@ -5,26 +5,46 @@ import { LinearGradient } from "expo-linear-gradient";
 import { useNavigation } from "@react-navigation/native";
 import { FIREBASE_AUTH } from "../FirebaseConfig";
 import { signOut } from "firebase/auth";
+import { ScrollView, RefreshControl } from "react-native";
+
 
 const cradleImg = require("../assets/dashboard_vector.png");
+const cradleIcon = require("../assets/icons/cradle.png");
+const cryingIcon = require("../assets/icons/crying-baby.png");
+const babyIcon = require("../assets/icons/baby.png");
+
 const profilePicture = require("../assets/profile.webp");
 
 const DashboardScreen = () => {
   const navigation = useNavigation();
   const [fanOn, setFanOn] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [fanSpeed, setFanSpeed] = useState(48); // percent
-  const diaperWetness = 82; // percent
+  const [rockerOn, setRockerOn] = useState(false);
+  const cradleWetness = 82; // percent
 
-  
-const handleLogout = async () => {
-  try {
-    await signOut(FIREBASE_AUTH);
-    console.log("User logged out");
-    // No need to manually navigate — your AuthContext will handle it
-  } catch (error: any) {
-    console.error("Logout failed:", error.message);
+    
+  const handleLogout = async () => {
+    try {
+      await signOut(FIREBASE_AUTH);
+      console.log("User logged out");
+      // No need to manually navigate — your AuthContext will handle it
+    } catch (error: any) {
+      console.error("Logout failed:", error.message);
+    }
+  };
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+
+    setRefreshing(false);
+  };
+
+  const toggleRocker = () => {
+    setRockerOn(!rockerOn);
   }
-};
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -40,7 +60,12 @@ const handleLogout = async () => {
           </View>
           }
         </View>
-
+      <ScrollView
+        contentContainerStyle={{ paddingBottom: 30 }}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        }
+      >        
         <View style={styles.illustrationContainer}>
           <Image source={cradleImg} style={styles.cradleImage}  />
         </View>
@@ -58,7 +83,7 @@ const handleLogout = async () => {
           <View style={styles.cardWide}>
             <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 6 }}>
               <FontAwesome5 name="baby" size={26} color="#7C5E99" style={{ marginRight: 8 }} />
-              <Text style={styles.wideLabel}>Diaper</Text>
+              <Text style={styles.wideLabel}>Cradle Wetness</Text>
             </View>
             <View style={styles.levelRow}>
               <LinearGradient
@@ -67,17 +92,17 @@ const handleLogout = async () => {
                 end={{ x: 1, y: 0 }}
                 style={styles.levelBarBgWide}
               >
-                <View style={[styles.levelBarFillWide, { width: `${diaperWetness}%` }]} />
+                <View style={[styles.levelBarFillWide, { width: `${cradleWetness}%` }]} />
               </LinearGradient>
-              <Text style={styles.levelBarPercentWide}>{diaperWetness}%</Text>
+              <Text style={styles.levelBarPercentWide}>{cradleWetness}%</Text>
             </View>
-            <Text style={styles.levelDesc}>{diaperWetness > 80 ? "Change Soon!" : "All Good"}</Text>
+            <Text style={styles.levelDesc}>{cradleWetness > 80 ? "Change Soon!" : "All Good"}</Text>
           </View>
         </View>
     
         <View style={styles.row}>
          
-          <TouchableOpacity style={styles.cardWide} activeOpacity={0.88} onPress={() => setFanOn(fan => !fan)}>
+          <TouchableOpacity style={styles.cardWide} activeOpacity={0.88}>
             <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 6 }}>
               <MaterialCommunityIcons name="fan" size={26} color="#5AD2F4" style={{ marginRight: 8 }} />
               <Text style={styles.wideLabel}>Cradle Fan</Text>
@@ -113,9 +138,21 @@ const handleLogout = async () => {
             <Text style={[styles.cardLabel, { color: "#fff" }]}>Music</Text>
           </TouchableOpacity>
         </View>
-        <TouchableOpacity style={styles.logout} onPress={handleLogout} activeOpacity={0.8}>
-            <MaterialIcons name="logout" size={28} color="#fff" />
+        <View style={styles.buttonContainer}>
+        <TouchableOpacity onPress={toggleRocker} activeOpacity={0.8} style={rockerOn ? styles.autoRocker: {...styles.autoRocker, ...styles.rockerOn}}>
+           <Image source={cradleIcon} style={styles.iconStyles}/>
         </TouchableOpacity>
+        <View style={styles.cryStatus} >
+           {false ?  <Image  source={cryingIcon} style={styles.iconStyles}/>:
+            <Image  source={babyIcon} style={styles.iconStyles}/>
+            }
+        </View>
+        <TouchableOpacity style={styles.logout} onPress={handleLogout} activeOpacity={0.8}>
+            <MaterialIcons name="logout" size={45} color="#fff" />
+        </TouchableOpacity>
+      </View>
+      </ScrollView>
+
       </View>
     </SafeAreaView>
   );
@@ -136,7 +173,6 @@ const styles = StyleSheet.create({
     backgroundColor: "#fff",
     borderBottomLeftRadius: 40,
     borderBottomRightRadius: 40,
-    marginBottom: "8%",
     overflow: "hidden",
   },
   header: {
@@ -364,14 +400,44 @@ cradleImage: {
     marginBottom: 2,
     marginTop: 2,
   },
+  buttonContainer: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignContent: "center",
+    paddingHorizontal: 20,
+    marginTop: 15,
+  },
   logout : {
-    height: 60,
-    width: 60,
-    borderRadius: 80,
-    backgroundColor: 'orange',
+    height: 80,
+    width: 80,
+    borderRadius: 40,
+    backgroundColor: "#FCAF58",
     alignItems: "center",
     justifyContent: "center",
-    alignSelf: "flex-end",
-    marginRight: 30,
+  }, 
+  autoRocker: {
+    height: 80,
+    width: "34%",
+    borderRadius: 30,
+    backgroundColor: "#b0d7f9",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  rockerOn: {
+    borderWidth: 5,
+    borderColor: "#b0d7f9",
+    backgroundColor: "#5fb0f7"
+  },
+  cryStatus: {
+    height: 80,
+    width: "34%",
+    borderRadius: 30,
+    backgroundColor: '#b0d7f9',
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  iconStyles: {
+    width: 50,
+    height: 50,
   }
 });
