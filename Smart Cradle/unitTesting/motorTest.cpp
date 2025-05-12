@@ -1,5 +1,4 @@
 #include "motorTest.h"
-#include "<Arduino.h>"
 
 void initMotors() {
   pinMode(IN1, OUTPUT);

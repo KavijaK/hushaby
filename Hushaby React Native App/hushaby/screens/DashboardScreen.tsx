@@ -1,164 +1,188 @@
-import React, { useState } from "react";
-import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, Switch, Image } from "react-native";
+import React, { useEffect, useState } from "react";
+import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, Switch, Image, ScrollView, RefreshControl } from "react-native";
 import { Ionicons, MaterialCommunityIcons, FontAwesome5, MaterialIcons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { useNavigation } from "@react-navigation/native";
-import { FIREBASE_AUTH } from "../FirebaseConfig";
 import { signOut } from "firebase/auth";
-import { ScrollView, RefreshControl } from "react-native";
-
+import { FIREBASE_AUTH, FIREBASE_DB } from "../FirebaseConfig";
+import { doc, getDoc } from "firebase/firestore";
 
 const cradleImg = require("../assets/dashboard_vector.png");
 const cradleIcon = require("../assets/icons/cradle.png");
 const cryingIcon = require("../assets/icons/crying-baby.png");
 const babyIcon = require("../assets/icons/baby.png");
-
 const profilePicture = require("../assets/profile.webp");
 
 const DashboardScreen = () => {
   const navigation = useNavigation();
-  const [fanOn, setFanOn] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [fanSpeed, setFanSpeed] = useState(48); // percent
+  const [userData, setUserData] = useState<any>(null);
+  const [fanOn, setFanOn] = useState(false);
+  const [fanSpeed, setFanSpeed] = useState(0);
   const [rockerOn, setRockerOn] = useState(false);
-  const cradleWetness = 82; // percent
 
-    
+  const fetchUserData = async () => {
+    try {
+      const user = FIREBASE_AUTH.currentUser;
+      if (!user) return;
+      const docRef = doc(FIREBASE_DB, "users", user.uid);
+      const docSnap = await getDoc(docRef);
+      if (docSnap.exists()) {
+        const data = docSnap.data();
+        setUserData(data);
+        setFanOn(data.cradleFanOn);
+        setFanSpeed(data.cradleFanSpeed);
+        setRockerOn(data.autoRockerOn);
+      } else {
+        console.warn("No user data found");
+      }
+    } catch (err) {
+      console.error("Error fetching data:", err);
+    }
+  };
+
+  useEffect(() => {
+    fetchUserData();
+  }, []);
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await fetchUserData();
+    setRefreshing(false);
+  };
+
   const handleLogout = async () => {
     try {
       await signOut(FIREBASE_AUTH);
       console.log("User logged out");
-      // No need to manually navigate — your AuthContext will handle it
     } catch (error: any) {
       console.error("Logout failed:", error.message);
     }
   };
 
-  const onRefresh = async () => {
-    setRefreshing(true);
-    
-    await new Promise((resolve) => setTimeout(resolve, 1000));
-
-    setRefreshing(false);
-  };
-
   const toggleRocker = () => {
     setRockerOn(!rockerOn);
-  }
+  };
+
+  const cradleWetness = userData?.diaperWetness ?? 0;
+  const roomTemperature = userData?.roomTemperature ?? "--";
 
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.panel}>
         <View style={styles.header}>
-          <Text style={styles.headerTitle}>Hi Kavija!</Text>
-          { !profilePicture ?
-          <View style={styles.profileCircle}>
-            <Ionicons name="person" size={28} color="#4E598C" />
-          </View>:
-          <View style={styles.avatar}>
-            <Image style={styles.avatar} source={profilePicture} />
-          </View>
+          <Text style={styles.headerTitle}>Hi {userData?.parentName ?? "there"}!</Text>
+          {!profilePicture ? (
+            <View style={styles.profileCircle}>
+              <Ionicons name="person" size={28} color="#4E598C" />
+            </View>
+          ) : (
+            <View style={styles.avatar}>
+              <Image style={styles.avatar} source={profilePicture} />
+            </View>
+          )}
+        </View>
+
+        <ScrollView
+          contentContainerStyle={{ paddingBottom: 30 }}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
           }
-        </View>
-      <ScrollView
-        contentContainerStyle={{ paddingBottom: 30 }}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-        }
-      >        
-        <View style={styles.illustrationContainer}>
-          <Image source={cradleImg} style={styles.cradleImage}  />
-        </View>
-
-        <View style={styles.row}>
-       
-          <View style={styles.cardSquare}>
-            <View style={[styles.circle, { backgroundColor: "#FCAF58" }]}>
-              <MaterialCommunityIcons name="thermometer" size={32} color="#fff" />
-            </View>
-            <Text style={styles.cardLabel}>Room Temp</Text>
-            <Text style={styles.tempValue}>23°C</Text>
+        >
+          <View style={styles.illustrationContainer}>
+            <Image source={cradleImg} style={styles.cradleImage} />
           </View>
-     
-          <View style={styles.cardWide}>
-            <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 6 }}>
-              <FontAwesome5 name="baby" size={26} color="#7C5E99" style={{ marginRight: 8 }} />
-              <Text style={styles.wideLabel}>Cradle Wetness</Text>
-            </View>
-            <View style={styles.levelRow}>
-              <LinearGradient
-                colors={["#F9C784", "#FF8C42"]}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
-                style={styles.levelBarBgWide}
-              >
-                <View style={[styles.levelBarFillWide, { width: `${cradleWetness}%` }]} />
-              </LinearGradient>
-              <Text style={styles.levelBarPercentWide}>{cradleWetness}%</Text>
-            </View>
-            <Text style={styles.levelDesc}>{cradleWetness > 80 ? "Change Soon!" : "All Good"}</Text>
-          </View>
-        </View>
-    
-        <View style={styles.row}>
-         
-          <TouchableOpacity style={styles.cardWide} activeOpacity={0.88}>
-            <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 6 }}>
-              <MaterialCommunityIcons name="fan" size={26} color="#5AD2F4" style={{ marginRight: 8 }} />
-              <Text style={styles.wideLabel}>Cradle Fan</Text>
-            </View>
-            <View style={styles.levelRow}>
-              <LinearGradient
-                colors={["#C4E7F5", "#5AD2F4"]}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
-                style={styles.levelBarBgWide}
-              >
-                <View style={[styles.levelBarFillFanWide, { width: `${fanSpeed}%` }]} />
-              </LinearGradient>
-              <Text style={styles.levelBarPercentFanWide}>{fanSpeed}%</Text>
-            </View>
-            <View style={styles.fanSwitchRow}>
-              <Text style={[styles.levelDesc, { marginTop: 3, color: fanOn ? "#5AD2F4" : "#aaa" }]}>{fanOn ? "On" : "Off"}</Text>
-              <Switch
-                trackColor={{ false: "#ddd", true: "#4E598C" }}
-                thumbColor={fanOn ? "#FCAF58" : "#fff"}
-                ios_backgroundColor="#ddd"
-                onValueChange={(v) => setFanOn(v)}
-                value={fanOn}
-                style={{ marginLeft: 6, marginTop: -3 }}
-              />
-            </View>
-          </TouchableOpacity>
-  
-          <TouchableOpacity onPress={() => navigation.navigate("Music")} style={[styles.cardSquare, styles.musicCard]} activeOpacity={0.70}>
-            <View style={[styles.circle, { backgroundColor: "#FF8C42" }]}>
-              <Ionicons name="musical-notes" size={28} color="#fff" />
-            </View>
-            <Text style={[styles.cardLabel, { color: "#fff" }]}>Music</Text>
-          </TouchableOpacity>
-        </View>
-        <View style={styles.buttonContainer}>
-        <TouchableOpacity onPress={toggleRocker} activeOpacity={0.8} style={rockerOn ? styles.autoRocker: {...styles.autoRocker, ...styles.rockerOn}}>
-           <Image source={cradleIcon} style={styles.iconStyles}/>
-        </TouchableOpacity>
-        <View style={styles.cryStatus} >
-           {false ?  <Image  source={cryingIcon} style={styles.iconStyles}/>:
-            <Image  source={babyIcon} style={styles.iconStyles}/>
-            }
-        </View>
-        <TouchableOpacity style={styles.logout} onPress={handleLogout} activeOpacity={0.8}>
-            <MaterialIcons name="logout" size={45} color="#fff" />
-        </TouchableOpacity>
-      </View>
-      </ScrollView>
 
+          <View style={styles.row}>
+            <View style={styles.cardSquare}>
+              <View style={[styles.circle, { backgroundColor: "#FCAF58" }]}>
+                <MaterialCommunityIcons name="thermometer" size={32} color="#fff" />
+              </View>
+              <Text style={styles.cardLabel}>Room Temp</Text>
+              <Text style={styles.tempValue}>{roomTemperature}°C</Text>
+            </View>
+
+            <View style={styles.cardWide}>
+              <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 6 }}>
+                <FontAwesome5 name="baby" size={26} color="#7C5E99" style={{ marginRight: 8 }} />
+                <Text style={styles.wideLabel}>Cradle Wetness</Text>
+              </View>
+              <View style={styles.levelRow}>
+                <LinearGradient
+                  colors={["#F9C784", "#FF8C42"]}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
+                  style={[{ width: `${cradleWetness}%` },styles.levelBarBgWide]}
+                >
+                  <View style={styles.levelBarFillWide} />
+                </LinearGradient>
+                <Text style={styles.levelBarPercentWide}>{cradleWetness}%</Text>
+              </View>
+              <Text style={styles.levelDesc}>{cradleWetness > 80 ? "Change Soon!" : "All Good"}</Text>
+            </View>
+          </View>
+
+          <View style={styles.row}>
+            <TouchableOpacity style={styles.cardWide} activeOpacity={0.88}>
+              <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 6 }}>
+                <MaterialCommunityIcons name="fan" size={26} color="#5AD2F4" style={{ marginRight: 8 }} />
+                <Text style={styles.wideLabel}>Cradle Fan</Text>
+              </View>
+              <View style={styles.levelRow}>
+                <LinearGradient
+                  colors={["#C4E7F5", "#5AD2F4"]}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
+                  style={[{ width: `${fanSpeed}%` }, styles.levelBarBgWide]}
+                >
+                  <View style={[styles.levelBarFillFanWide, ]} />
+                </LinearGradient>
+                <Text style={styles.levelBarPercentFanWide}>{fanSpeed}%</Text>
+              </View>
+              <View style={styles.fanSwitchRow}>
+                <Text style={[styles.levelDesc, { marginTop: 3, color: fanOn ? "#5AD2F4" : "#aaa" }]}>{fanOn ? "On" : "Off"}</Text>
+                <Switch
+                  trackColor={{ false: "#ddd", true: "#4E598C" }}
+                  thumbColor={fanOn ? "#FCAF58" : "#fff"}
+                  ios_backgroundColor="#ddd"
+                  onValueChange={(v) => setFanOn(v)}
+                  value={fanOn}
+                  style={{ marginLeft: 6, marginTop: -3 }}
+                />
+              </View>
+            </TouchableOpacity>
+
+            <TouchableOpacity onPress={() => navigation.navigate("Music")} style={[styles.cardSquare, styles.musicCard]} activeOpacity={0.70}>
+              <View style={[styles.circle, { backgroundColor: "#FF8C42" }]}>
+                <Ionicons name="musical-notes" size={28} color="#fff" />
+              </View>
+              <Text style={[styles.cardLabel, { color: "#fff" }]}>Music</Text>
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.buttonContainer}>
+            <TouchableOpacity onPress={toggleRocker} activeOpacity={0.8} style={rockerOn ? styles.autoRocker : { ...styles.autoRocker, ...styles.rockerOn }}>
+              <Image source={cradleIcon} style={styles.iconStyles} />
+            </TouchableOpacity>
+            <View style={styles.cryStatus}>
+              {userData?.isBabyCrying ? (
+                <Image source={cryingIcon} style={styles.iconStyles} />
+              ) : (
+                <Image source={babyIcon} style={styles.iconStyles} />
+              )}
+            </View>
+            <TouchableOpacity style={styles.logout} onPress={handleLogout} activeOpacity={0.8}>
+              <MaterialIcons name="logout" size={45} color="#fff" />
+            </TouchableOpacity>
+          </View>
+        </ScrollView>
       </View>
     </SafeAreaView>
   );
 };
 
 export default DashboardScreen;
+
 
 const CARD_SIZE = 130;
 const CARD_WIDE_WIDTH = CARD_SIZE * 1.65; // wide cards are 65% longer
@@ -307,13 +331,12 @@ cradleImage: {
     flexDirection: "row",
     alignItems: "center",
     marginTop: 9,
-    width: "97%",
+    width: "70%",
     paddingRight: 8,
     justifyContent: "flex-start",
   },
   levelBarBgWide: {
     height: 18,
-    width: "68%",
     backgroundColor: "#F9C784",
     borderRadius: 10,
     overflow: "hidden",

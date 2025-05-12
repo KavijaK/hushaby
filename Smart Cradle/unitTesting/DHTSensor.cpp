@@ -1,6 +1,5 @@
 #include "DHTSensor.h"
 #include <DHT.h>
-#include <Arduino.h>
 
 #define DHTPIN 27
 #define DHTTYPE DHT11

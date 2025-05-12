@@ -1,7 +1,6 @@
 #include "dFPlayer.h"
 #include <DFRobotDFPlayerMini.h>
 #include <HardwareSerial.h>
-#include <Arduino.h>
 
 // UART1: TX=17, RX=16 (change as needed)
 HardwareSerial mySerial(1);

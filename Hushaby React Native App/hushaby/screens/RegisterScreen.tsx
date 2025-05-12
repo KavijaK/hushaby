@@ -56,7 +56,7 @@ const RegisterScreen = () => {
                 babyName: babyName,
                 createdAt: new Date().toISOString(),
                 cradleFanOn: false,
-                cradleFanSpeed: 0,
+                cradleFanSpeed: 50,
                 musicPlaying: false,
                 currentTrack: 1,
                 roomTemperature: 27,

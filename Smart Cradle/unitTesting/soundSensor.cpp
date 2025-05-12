@@ -1,5 +1,4 @@
 #include "SoundSensor.h"
-#include <Arduino.h>
 
 #define SOUND_PIN 35   // Change as needed
 

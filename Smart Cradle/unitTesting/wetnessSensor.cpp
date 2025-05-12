@@ -1,5 +1,4 @@
 #include "WetnessSensor.h"
-#include <Arduino.h>
 
 void initWetnessSensor() {
     pinMode(WETNESS_PIN, INPUT);

@@ -8,11 +8,11 @@
 void setup() {
   // put your setup code here, to run once:
   Serial.begin(115200);
-  initMotor();
-  initDFPlayer();
-  initWetnessSensor();
-  initSoundSensor();
-  initDHTSensor();
+  // initMotor();
+  // initDFPlayer();
+  // initWetnessSensor();
+  // initSoundSensor();
+  // initDHTSensor();
 }
 
 void loop() {
