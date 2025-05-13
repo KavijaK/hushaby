@@ -2,6 +2,8 @@ import React, { useState } from "react";
 import { View, Text, TouchableOpacity, StyleSheet, SafeAreaView, Image, ImageBackground } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
+import { FIREBASE_AUTH, FIREBASE_DB } from "../FirebaseConfig";
+import { doc, updateDoc } from "firebase/firestore";
 
 const tracks = [
   { id: 1, label: "Lullabies & Tunes" },
@@ -14,11 +16,35 @@ const musicBackground= require("../assets/music.webp");
 const MusicScreen = () => {
   const [currentTrack, setCurrentTrack] = useState<number | null>(null);
 
-  const handlePlay = (trackId: number) => {
-    setCurrentTrack(trackId === currentTrack ? null : trackId);
-    // Trigger playback logic here (or stop if trackId === currentTrack)
-  };
+  const handlePlay = async (trackId: number) => {
+    const user = FIREBASE_AUTH.currentUser;
 
+    if (!user) {
+      console.warn("User not logged in");
+      return;
+    }
+
+    const uid = user.uid;
+    const userDocRef = doc(FIREBASE_DB, 'users', uid);
+
+    const isSameTrack = trackId === currentTrack;
+    const newTrack = isSameTrack ? null : trackId;
+    const playing = !isSameTrack;
+
+    setCurrentTrack(newTrack); // Update UI
+
+    try {
+      await updateDoc(userDocRef, {
+        musicPlaying: playing,
+        currentTrack: newTrack,
+      });
+
+      console.log(`Updated music state: ${playing ? "Playing" : "Stopped"}, Track: ${newTrack}`);
+    } catch (error) {
+      console.error("Error updating music state in Firestore:", error);
+    }
+  };
+  
   return (
     <ImageBackground source={musicBackground} resizeMode="cover" style={{flex: 1}}>
       <SafeAreaView style={styles.container}>

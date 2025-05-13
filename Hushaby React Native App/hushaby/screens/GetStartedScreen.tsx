@@ -64,7 +64,7 @@ const GetStartedScreen = () => {
         width: "75%",
         alignItems: 'center',
         justifyContent: 'center',
-        shadowColor: '#000',            // Nice subtle shadow for elevation
+        shadowColor: '#000',           
         shadowOffset: { width: 0, height: 3 },
         shadowOpacity: 0.2,
         shadowRadius: 4,

@@ -5,7 +5,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import { useNavigation } from "@react-navigation/native";
 import { signOut } from "firebase/auth";
 import { FIREBASE_AUTH, FIREBASE_DB } from "../FirebaseConfig";
-import { doc, getDoc } from "firebase/firestore";
+import { doc, getDoc, updateDoc } from "firebase/firestore";
 
 const cradleImg = require("../assets/dashboard_vector.png");
 const cradleIcon = require("../assets/icons/cradle.png");
@@ -60,9 +60,53 @@ const DashboardScreen = () => {
     }
   };
 
-  const toggleRocker = () => {
+  const toggleRocker = async () => {
     setRockerOn(!rockerOn);
+
+    const userDocRef = doc(FIREBASE_DB, 'users', userData.uid);
+
+    try {
+      const docSnap = await getDoc(userDocRef);
+
+      if (docSnap.exists()) {
+        const current = docSnap.data().autoRockerOn;
+        const newValue = !current;
+
+        await updateDoc(userDocRef, { autoRockerOn: newValue });
+
+        console.log(`autoRockerOn toggled to: ${newValue}`);
+      } 
+      else {
+        console.warn('User document does not exist');
+      }
+    } catch (error) {
+      console.error('Error toggling autoRockerOn:', error);
+    }
   };
+
+  const toggleCradleFan = async () => {
+    setFanOn(prev => !prev); // Assuming you're using this state in the UI
+
+    const userDocRef = doc(FIREBASE_DB, 'users', userData.uid);
+
+    try {
+      const docSnap = await getDoc(userDocRef);
+
+      if (docSnap.exists()) {
+        const current = docSnap.data().cradleFanOn;
+        const newValue = !current;
+
+        await updateDoc(userDocRef, { cradleFanOn: newValue });
+
+        console.log(`cradleFanOn toggled to: ${newValue}`);
+      } else {
+        console.warn('User document does not exist');
+      }
+    } catch (error) {
+      console.error('Error toggling cradleFanOn:', error);
+    }
+};
+
 
   const cradleWetness = userData?.diaperWetness ?? 0;
   const roomTemperature = userData?.roomTemperature ?? "--";
@@ -145,7 +189,7 @@ const DashboardScreen = () => {
                   trackColor={{ false: "#ddd", true: "#4E598C" }}
                   thumbColor={fanOn ? "#FCAF58" : "#fff"}
                   ios_backgroundColor="#ddd"
-                  onValueChange={(v) => setFanOn(v)}
+                  onValueChange={toggleCradleFan}
                   value={fanOn}
                   style={{ marginLeft: 6, marginTop: -3 }}
                 />
@@ -161,7 +205,7 @@ const DashboardScreen = () => {
           </View>
 
           <View style={styles.buttonContainer}>
-            <TouchableOpacity onPress={toggleRocker} activeOpacity={0.8} style={rockerOn ? styles.autoRocker : { ...styles.autoRocker, ...styles.rockerOn }}>
+            <TouchableOpacity onPress={toggleRocker} activeOpacity={0.8} style={!rockerOn ? styles.autoRocker : { ...styles.autoRocker, ...styles.rockerOn }}>
               <Image source={cradleIcon} style={styles.iconStyles} />
             </TouchableOpacity>
             <View style={styles.cryStatus}>
