@@ -1,0 +1,17 @@
+{
+  "functions": [
+    {
+      "platform": "gcfv2",
+      "source": "functions",
+      "codebase": "default",
+      "region": "asia-south2",
+      "ignore": [
+        "node_modules",
+        ".git",
+        "firebase-debug.log",
+        "firebase-debug.*.log",
+        "*.local"
+      ]
+    }
+  ]
+}
