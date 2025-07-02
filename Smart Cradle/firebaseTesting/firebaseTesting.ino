@@ -23,6 +23,21 @@ void setupWiFi() {
   Serial.println(" connected!");
 }
 
+void updateDiaperWetness(int wetness) {
+  String docPath = "users/" + String(USER_UID);
+
+  FirebaseJson content;
+  content.set("fields/diaperWetness/integerValue", String(wetness));
+
+  Serial.println("📤 Updating diaperWetness...");
+  if (Firebase.Firestore.updateDocument(&fbdo, PROJECT_ID, "", docPath.c_str(), content.raw(), "")) {
+    Serial.println("✅ diaperWetness updated successfully.");
+  } else {
+    Serial.println("❌ Failed to update diaperWetness: " + fbdo.errorReason());
+  }
+}
+
+
 void connectToFirebase() {
   config.api_key = API_KEY;
   config.token_status_callback = tokenStatusCallback;
