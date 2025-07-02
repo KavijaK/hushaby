@@ -2,11 +2,9 @@ from flask import Flask, request, jsonify
 from firebase_config import init_firestore
 from ml_model import run_model
 from volume_booster import boost_volume
-from utils import save_audio
 import wave
 import os
 from threading import Timer
-
 
 app = Flask(__name__)
 UPLOAD_DIR = "uploads"
@@ -27,7 +25,6 @@ def reset_detection(user_id, delay=600):
 def index():
     return "ESP32 Audio ML Server is running"
 
-
 @app.route('/upload_raw', methods=['POST'])
 def upload_raw():
     user_id = request.args.get('userId')
@@ -39,13 +36,13 @@ def upload_raw():
     boosted_path = f"{UPLOAD_DIR}/{user_id}_boosted.wav"
 
     # Save raw PCM as WAV
-    with wave.open(input_path, 'wb') as wav:
-        wav.setnchannels(1)
-        wav.setsampwidth(2)  # 16-bit
-        wav.setframerate(8000)
-        wav.writeframes(raw_data)
-
     try:
+        with wave.open(input_path, 'wb') as wav:
+            wav.setnchannels(1)
+            wav.setsampwidth(2)  # 16-bit
+            wav.setframerate(8000)
+            wav.writeframes(raw_data)
+
         boost_volume(input_path, boosted_path, gain=10)
         result = run_model(boosted_path)
 
@@ -63,7 +60,6 @@ def upload_raw():
         for f in [input_path, boosted_path]:
             if os.path.exists(f):
                 os.remove(f)
-
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)
