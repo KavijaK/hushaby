@@ -5,6 +5,7 @@ from volume_booster import boost_volume
 import wave
 import os
 from threading import Timer
+from flask import send_file
 
 app = Flask(__name__)
 UPLOAD_DIR = "uploads"
@@ -56,10 +57,24 @@ def upload_raw():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-    finally:
-        for f in [input_path, boosted_path]:
-            if os.path.exists(f):
-                os.remove(f)
+# Only for removing the file.
+    # finally:
+    #     for f in [input_path, boosted_path]:
+    #         if os.path.exists(f):
+    #             os.remove(f)
+
+
+@app.route('/download_audio')
+def download_audio():
+    user_id = request.args.get('userId')
+    version = request.args.get('version', 'boosted')  # 'input' or 'boosted'
+
+    filename = f"{UPLOAD_DIR}/{user_id}_{version}.wav"
+    if not os.path.exists(filename):
+        return jsonify({'error': 'File not found'}), 404
+
+    return send_file(filename, as_attachment=True)
+
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)
