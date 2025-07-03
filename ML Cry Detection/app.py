@@ -1,6 +1,6 @@
 from flask import Flask, request, jsonify
 from firebase_config import init_firestore
-from ml_model import run_model
+# from ml_model import run_model
 from volume_booster import boost_volume
 import wave
 import os
