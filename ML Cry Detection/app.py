@@ -45,7 +45,8 @@ def upload_raw():
             wav.writeframes(raw_data)
 
         boost_volume(input_path, boosted_path, gain=10)
-        result = run_model(boosted_path)
+        # result = run_model(boosted_path)
+        result = False
 
         if result:
             user_ref = db.collection('users').document(user_id)
