@@ -1,45 +1,45 @@
 #include <WiFi.h>
 #include <HTTPClient.h>
-#include "SPIFFS.h"
-#include "driver/i2s.h"
+#include <driver/i2s.h>
 
-// WiFi credentials
-const char* ssid = "YOUR_SSID";
-const char* password = "YOUR_PASSWORD";
+// WiFi Config
+const char* ssid = "YourSSID";
+const char* password = "YourPassword";
+const char* serverUrl = "http://your-flask-server.com/upload_raw";  // Flask server URL
+const char* userId = "esp_user_123";  // Optional: can be set per device
 
-// Flask server
-const char* serverUrl = "http://<your-server-ip>:5000/upload";
-const char* userId = "user_123"; // dynamically assign if needed
+// I2S Pins
+#define I2S_SCK 26
+#define I2S_WS  25
+#define I2S_SD  22
 
-// I2S pins (INMP441)
-#define I2S_WS  15
-#define I2S_SD  32
-#define I2S_SCK 14
+// I2S config
+#define I2S_PORT I2S_NUM_0
+#define SAMPLE_RATE 8000
+#define BUFFER_SIZE 512  // 512 samples = 1024 bytes (16-bit mono)
 
-#define SAMPLE_RATE     16000
-#define RECORD_SECONDS  10
-#define BUFFER_SIZE     1024
+void setup() {
+  Serial.begin(115200);
 
-// Sound sensor (analog)
-const int soundPin = 34;
-const int threshold = 3000;           // tune based on your sensor
-const int windowMs = 100;
-const int sustainTimeMs = 5000;       // 5 seconds
+  // Connect WiFi
+  WiFi.begin(ssid, password);
+  Serial.print("[INFO] Connecting to WiFi");
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+    Serial.print(".");
+  }
+  Serial.println("\n[INFO] WiFi connected!");
 
-unsigned long aboveThresholdDuration = 0;
-unsigned long lastCheckTime = 0;
-
-// Setup I2S
-void setupI2S() {
+  // I2S config
   const i2s_config_t i2s_config = {
-    .mode = (i2s_mode_t)(I2S_MODE_MASTER | I2S_MODE_RX),
+    .mode = i2s_mode_t(I2S_MODE_MASTER | I2S_MODE_RX),
     .sample_rate = SAMPLE_RATE,
     .bits_per_sample = I2S_BITS_PER_SAMPLE_16BIT,
     .channel_format = I2S_CHANNEL_FMT_ONLY_LEFT,
     .communication_format = I2S_COMM_FORMAT_I2S,
-    .intr_alloc_flags = ESP_INTR_FLAG_LEVEL1,
+    .intr_alloc_flags = 0,
     .dma_buf_count = 8,
-    .dma_buf_len = 1024,
+    .dma_buf_len = 512,
     .use_apll = false,
     .tx_desc_auto_clear = false,
     .fixed_mclk = 0
@@ -52,111 +52,61 @@ void setupI2S() {
     .data_in_num = I2S_SD
   };
 
-  i2s_driver_install(I2S_NUM_0, &i2s_config, 0, NULL);
-  i2s_set_pin(I2S_NUM_0, &pin_config);
-  i2s_zero_dma_buffer(I2S_NUM_0);
+  i2s_driver_install(I2S_PORT, &i2s_config, 0, NULL);
+  i2s_set_pin(I2S_PORT, &pin_config);
 }
 
-// Record audio from I2S
-void recordAudio(const char* filename) {
-  File file = SPIFFS.open(filename, FILE_WRITE);
-  if (!file) {
-    Serial.println("[ERROR] Failed to open file for writing");
+void loop() {
+  Serial.println("[INFO] Recording and uploading 8 seconds of audio...");
+
+  const int duration_sec = 8;
+  const int total_samples = SAMPLE_RATE * duration_sec;
+  const int total_bytes = total_samples * 2; // 16-bit mono
+  int16_t* audio_data = (int16_t*)malloc(total_bytes);
+
+  if (!audio_data) {
+    Serial.println("[ERROR] Not enough RAM for audio buffer!");
+    delay(10000);
     return;
   }
 
-  int16_t buffer[BUFFER_SIZE];
-  size_t bytesRead;
-  int totalBytes = SAMPLE_RATE * RECORD_SECONDS * sizeof(int16_t);
+  size_t bytesRead = 0;
+  size_t offset = 0;
+  size_t to_read = BUFFER_SIZE * sizeof(int16_t);
 
-  Serial.println("[INFO] Recording audio...");
-  for (int i = 0; i < totalBytes / sizeof(buffer); i++) {
-    i2s_read(I2S_NUM_0, &buffer, sizeof(buffer), &bytesRead, portMAX_DELAY);
-    file.write((uint8_t*)buffer, bytesRead);
+  // Read audio data into buffer
+  while (offset < total_bytes) {
+    size_t bytes_to_read = min(to_read, total_bytes - offset);
+    size_t chunk_bytes = 0;
+    esp_err_t res = i2s_read(I2S_PORT, (uint8_t*)audio_data + offset, bytes_to_read, &chunk_bytes, portMAX_DELAY);
+    if (res != ESP_OK) {
+      Serial.printf("[ERROR] I2S read failed: %d\n", res);
+      free(audio_data);
+      delay(10000);
+      return;
+    }
+    offset += chunk_bytes;
   }
 
-  file.close();
-  Serial.println("[INFO] Recording complete");
-}
-
-// Send audio to Flask server
-void sendAudio(const char* filename) {
-  File file = SPIFFS.open(filename);
-  if (!file) {
-    Serial.println("[ERROR] Cannot open file to send");
-    return;
-  }
-
+  // Prepare HTTP POST
   HTTPClient http;
-  http.begin(serverUrl);
+  String full_url = String(serverUrl) + "?userId=" + userId;
+  http.begin(full_url);
+  http.addHeader("Content-Type", "application/octet-stream");
 
-  String boundary = "----boundary";
-  String contentType = "multipart/form-data; boundary=" + boundary;
-  http.addHeader("Content-Type", contentType);
+  int response = http.POST((uint8_t*)audio_data, total_bytes);
+  Serial.printf("[INFO] Upload complete. Server responded with: %d\n", response);
 
-  // Build body
-  WiFiClient *stream = http.getStreamPtr();
-  String start = "--" + boundary + "\r\n";
-  start += "Content-Disposition: form-data; name=\"file\"; filename=\"audio.pcm\"\r\n";
-  start += "Content-Type: application/octet-stream\r\n\r\n";
-  stream->print(start);
-
-  while (file.available()) {
-    stream->write(file.read());
+  if (response > 0) {
+    String payload = http.getString();
+    Serial.println("[INFO] Server response:");
+    Serial.println(payload);
+  } else {
+    Serial.printf("[ERROR] HTTP POST failed: %s\n", http.errorToString(response).c_str());
   }
-
-  file.close();
-
-  String middle = "\r\n--" + boundary + "\r\n";
-  middle += "Content-Disposition: form-data; name=\"userId\"\r\n\r\n";
-  middle += userId;
-  middle += "\r\n--" + boundary + "--\r\n";
-  stream->print(middle);
-
-  int code = http.POST("");
-  Serial.printf("[HTTP] Response code: %d\n", code);
-  Serial.println(http.getString());
 
   http.end();
-}
+  free(audio_data);
 
-// Main handler
-void recordAndSendAudio() {
-  recordAudio("/audio.pcm");
-  sendAudio("/audio.pcm");
-}
-
-// Setup
-void setup() {
-  Serial.begin(115200);
-  SPIFFS.begin(true);
-  WiFi.begin(ssid, password);
-  while (WiFi.status() != WL_CONNECTED) {
-    delay(500); Serial.print(".");
-  }
-  Serial.println("\n[INFO] WiFi Connected");
-
-  setupI2S();
-}
-
-// Loop monitors for sustained sound
-void loop() {
-  if (millis() - lastCheckTime >= windowMs) {
-    lastCheckTime = millis();
-
-    int value = analogRead(soundPin);
-    Serial.println(value);
-
-    if (value > threshold) {
-      aboveThresholdDuration += windowMs;
-    } else {
-      aboveThresholdDuration = 0;
-    }
-
-    if (aboveThresholdDuration >= sustainTimeMs) {
-      Serial.println("[TRIGGER] Sustained sound detected");
-      recordAndSendAudio();
-      aboveThresholdDuration = 0;
-    }
-  }
+  delay(10000);  // Wait before next upload (adjust as needed)
 }

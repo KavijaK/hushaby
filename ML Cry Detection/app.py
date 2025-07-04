@@ -1,15 +1,31 @@
 from flask import Flask, request, jsonify
 from firebase_config import init_firestore
-# from ml_model import run_model
 from volume_booster import boost_volume
 import wave
 import os
 from threading import Timer
-from flask import send_file
+import joblib
+import librosa
+import torch
+import numpy as np
+from transformers import Wav2Vec2Processor, Wav2Vec2Model
+
+
+# ====== CONFIG ======
+device = 'cuda' if torch.cuda.is_available() else 'cpu'
+model_name = "facebook/wav2vec2-base"
+sample_rate = 16000  # Wav2Vec expects this
+
+# ====== LOAD MODELS ======
+processor = Wav2Vec2Processor.from_pretrained(model_name)
+model = Wav2Vec2Model.from_pretrained(model_name).to(device).eval()
+
 
 app = Flask(__name__)
 UPLOAD_DIR = "uploads"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
+
+xgb_clf = joblib.load("xgb_baby_cry_model.joblib")
 
 # Initialize Firestore
 db = init_firestore()
@@ -45,8 +61,7 @@ def upload_raw():
             wav.writeframes(raw_data)
 
         boost_volume(input_path, boosted_path, gain=10)
-        # result = run_model(boosted_path)
-        result = False
+        result = predict_audio(boosted_path, xgb_clf)
 
         if result:
             user_ref = db.collection('users').document(user_id)
@@ -58,23 +73,33 @@ def upload_raw():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-# Only for removing the file.
-    # finally:
-    #     for f in [input_path, boosted_path]:
-    #         if os.path.exists(f):
-    #             os.remove(f)
+    finally:
+        for f in [input_path, boosted_path]:
+            if os.path.exists(f):
+                os.remove(f)
 
+def predict_audio(filepath, classifier):
+    try:
+        print(f"🔍 Analyzing: {os.path.basename(filepath)}")
 
-@app.route('/download_audio')
-def download_audio():
-    user_id = request.args.get('userId')
-    version = request.args.get('version', 'boosted')  # 'input' or 'boosted'
+        # 1. Load audio
+        audio, _ = librosa.load(filepath, sr=sample_rate)
 
-    filename = f"{UPLOAD_DIR}/{user_id}_{version}.wav"
-    if not os.path.exists(filename):
-        return jsonify({'error': 'File not found'}), 404
+        # 2. Extract Wav2Vec embedding
+        inputs = processor(audio, return_tensors="pt", sampling_rate=sample_rate, padding=True).to(device)
+        with torch.no_grad():
+            embedding = model(**inputs).last_hidden_state.mean(dim=1).cpu().numpy()
 
-    return send_file(filename, as_attachment=True)
+        # 3. Predict
+        prediction = classifier.predict(embedding)[0]
+        is_cry = bool(prediction == 1)
+        print(f"✅ Prediction: {'CRY' if is_cry else 'NO_CRY'}")
+
+        return is_cry
+
+    except Exception as e:
+        print(f"❌ Error: {e}")
+        return None
 
 
 if __name__ == '__main__':
