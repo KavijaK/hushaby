@@ -254,7 +254,7 @@ void setup() {
   xTaskCreate(
   updateSensors,
   "updateSensors",   // Name
-  4096,              // Stack size (increase if needed)
+  12288,              // Stack size (increase if needed)
   NULL,              // Parameter
   1,                 // Priority
   NULL               // Task handle
