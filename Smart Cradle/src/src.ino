@@ -4,6 +4,13 @@
 #include <Firebase_ESP_Client.h>
 #include "env.h"
 #include "motorControl.h"
+#include "wetnessSensors.h"
+#include "DFRobotDFPlayerMini.h"
+
+#define FPSerial Serial2
+
+// Create an instance of the DFPlayer Mini
+DFRobotDFPlayerMini myDFPlayer;
 
 //// Firebase objects
 FirebaseData fbdo;
@@ -13,6 +20,30 @@ FirebaseConfig config;
 // Wifi instances
 WiFiClientSecure wifiClient;
 PubSubClient mqttClient(wifiClient);
+
+bool isWet = false;
+
+/////////////////////////// DF Player ///////////////////////////////////////
+
+
+void setupDFPlayer() {
+  FPSerial.begin(9600, SERIAL_8N1, 16, 17);  // Define Serial2 with specific pins
+  Serial.println(F("DFRobot DFPlayer Mini Demo"));
+  Serial.println(F("Initializing DFPlayer ... (May take 3~5 seconds)"));
+
+  if (!myDFPlayer.begin(FPSerial)) {
+    Serial.println(F("Unable to begin:"));
+    Serial.println(F("1. Please recheck the connection!"));
+    Serial.println(F("2. Please insert the SD card!"));
+    while (true) {
+      delay(0); // Code to compatible with ESP8266 watch dog.
+    }
+  }
+  Serial.println(F("DFPlayer Mini online."));
+  myDFPlayer.volume(30);
+}
+
+//////////////////////////// END OF DF Player ///////////////////////////////
 
 ///////////////////////////// MQTT BROKER ///////////////////////////////////
 
@@ -30,7 +61,7 @@ void callback(char* topic, byte* payload, unsigned int length) {
 
   if (String(topic).endsWith("/cradleFan")) {
     if (message == "on") {
-      runCradleFan(200); // Example PWM speed for ON
+      runCradleFan(); // Example PWM speed for ON
     } else if (message == "off") {
       stopCradleFan();
     }
@@ -45,14 +76,14 @@ void callback(char* topic, byte* payload, unsigned int length) {
   }
 
   else if (String(topic).endsWith("/music")) {
-    if (message == "on") {
-      // TODO: implement music playback
-    } else if (message == "off") {
-      // TODO: implement music stop
+    if (message == "1" || message == "2" || message == "3") {
+      String msgStr = String(message); 
+      myDFPlayer.play(msgStr.toInt());
+    } else {
+      myDFPlayer.stop();
     }
   }
 }
-
 
 void setupMQTT() {
   mqttClient.setServer(MQTT_BROKER, 8883);
@@ -169,20 +200,42 @@ void updateRoomTemperature(float temperature) {
   }
 }
 
+void updateDiaperWetness() {
+  String docPath = "users/" + String(USER_UID);
+
+  FirebaseJson content;
+  content.set("fields/diaperWetness/integerValue", "80");  // Set as integer
+
+  Serial.println("📤 Updating diaperWetness...");
+  if (Firebase.Firestore.patchDocument(&fbdo, PROJECT_ID, "", docPath.c_str(), content.raw(), "diaperWetness")) {
+    Serial.println("✅ diaperWetness updated successfully.");
+  } else {
+    Serial.println("❌ Failed to update diaperWetness: " + fbdo.errorReason());
+  }
+}
+
 
 /////////////////////////////// END OF FIREBASE /////////////////////////////////////
+
+////////////////////////////// START OF WETNESSS ///////////////////////////////////
+
+void runWetness() {
+  bool isWet = checkWetness();
+  if (isWet ==  true) {
+    updateDiaperWetness();
+  }
+}
+
+//////////////////////////////// END OF WETNESS ////////////////////////////////////
 
 void setup() {
   Serial.begin(9600);
   setupWiFi();
-  setupMQTT();    
-  delay(2500);
-  // setupMotors();   
-  // Serial.println("Motors done");      
+  setupMQTT();  
+  setupWetnessSensor();  
+  delay(2500);  
   connectToFirebase();
   delay(3000);     
-  // Give time for Firebase to fully initialize
-  updateRoomTemperature(55);
 }
 
 void loop() {
@@ -190,4 +243,5 @@ void loop() {
     reconnect();
   }
   mqttClient.loop();
+  runWetness();
 }
