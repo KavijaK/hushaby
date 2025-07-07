@@ -9,7 +9,6 @@ const char* uid = "VGnkFDQOKPOMf5Gr8UPp6tII1yi2";
 
 // MQTT broker details private
 const char* mqtt_broker = "f2ebba36fe344449a374fbff41eba187.s1.eu.hivemq.cloud";
-const int mqtt_port = 8883;
 const char* mqtt_username = "hushaby";
 const char* mqtt_password = "Hushhush2023";
 
@@ -28,7 +27,7 @@ void callback(char* topic, byte* payload, unsigned int length) {
 }
 
 void setupMQTT() {
-  mqttClient.setServer(mqtt_broker, mqtt_port);
+  mqttClient.setServer(mqtt_broker, 8883);
   mqttClient.setCallback(callback);
 }
 

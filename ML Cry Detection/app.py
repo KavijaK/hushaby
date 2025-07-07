@@ -1,12 +1,31 @@
 from flask import Flask, request, jsonify
 from firebase_config import init_firestore
-from ml_model import run_model
-from utils import save_audio
+from volume_booster import boost_volume
+import wave
 import os
 from threading import Timer
+import joblib
+import librosa
+import torch
+import numpy as np
+from transformers import Wav2Vec2Processor, Wav2Vec2Model
+
+
+# ====== CONFIG ======
+device = 'cuda' if torch.cuda.is_available() else 'cpu'
+model_name = "facebook/wav2vec2-base"
+sample_rate = 16000  # Wav2Vec expects this
+
+# ====== LOAD MODELS ======
+processor = Wav2Vec2Processor.from_pretrained(model_name)
+model = Wav2Vec2Model.from_pretrained(model_name).to(device).eval()
 
 
 app = Flask(__name__)
+UPLOAD_DIR = "uploads"
+os.makedirs(UPLOAD_DIR, exist_ok=True)
+
+xgb_clf = joblib.load("xgb_baby_cry_model.joblib")
 
 # Initialize Firestore
 db = init_firestore()
@@ -23,42 +42,66 @@ def reset_detection(user_id, delay=600):
 def index():
     return "ESP32 Audio ML Server is running"
 
-
-@app.route('/upload', methods=['POST'])
-def handle_upload():
-    if 'file' not in request.files:
-        return jsonify({'error': 'No audio file provided'}), 400
-
-    user_id = request.form.get('userId')
+@app.route('/upload_raw', methods=['POST'])
+def upload_raw():
+    user_id = request.args.get('userId')
     if not user_id:
         return jsonify({'error': 'No userId provided'}), 400
 
-    audio_file = request.files['file']
-    filename = f"{user_id}_{audio_file.filename}"
-    audio_path = save_audio(audio_file, filename)
+    raw_data = request.data
+    input_path = f"{UPLOAD_DIR}/{user_id}_input.wav"
+    boosted_path = f"{UPLOAD_DIR}/{user_id}_boosted.wav"
 
+    # Save raw PCM as WAV
     try:
-        # Run ML model
-        result = run_model(audio_path)
+        with wave.open(input_path, 'wb') as wav:
+            wav.setnchannels(1)
+            wav.setsampwidth(2)  # 16-bit
+            wav.setframerate(8000)
+            wav.writeframes(raw_data)
+
+        boost_volume(input_path, boosted_path, gain=10)
+        result = predict_audio(boosted_path, xgb_clf)
 
         if result:
-            # Update Firestore only if result is True
             user_ref = db.collection('users').document(user_id)
             user_ref.update({'cryDetected': True})
-
-            # Schedule reset after 10 minutes (600 seconds)
             Timer(600, reset_detection, args=(user_id,)).start()
 
         return jsonify({'status': 'success', 'userId': user_id, 'result': result})
-    
+
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
     finally:
-        # Always delete the file after processing
-        if os.path.exists(audio_path):
-            os.remove(audio_path)
+        for f in [input_path, boosted_path]:
+            if os.path.exists(f):
+                os.remove(f)
+
+def predict_audio(filepath, classifier):
+    try:
+        print(f"🔍 Analyzing: {os.path.basename(filepath)}")
+
+        # 1. Load audio
+        audio, _ = librosa.load(filepath, sr=sample_rate)
+
+        # 2. Extract Wav2Vec embedding
+        inputs = processor(audio, return_tensors="pt", sampling_rate=sample_rate, padding=True).to(device)
+        with torch.no_grad():
+            embedding = model(**inputs).last_hidden_state.mean(dim=1).cpu().numpy()
+
+        # 3. Predict
+        prediction = classifier.predict(embedding)[0]
+        is_cry = bool(prediction == 1)
+        print(f"✅ Prediction: {'CRY' if is_cry else 'NO_CRY'}")
+
+        return is_cry
+
+    except Exception as e:
+        print(f"❌ Error: {e}")
+        return None
 
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000)
+    port = int(os.environ.get('PORT', 5000))  # Get port from env var PORT, default to 5000
+    app.run(host='0.0.0.0', port=port)
