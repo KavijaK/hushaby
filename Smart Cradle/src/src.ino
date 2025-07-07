@@ -6,6 +6,7 @@
 #include "motorControl.h"
 #include "wetnessSensors.h"
 #include "DFRobotDFPlayerMini.h"
+#include "DHTSensor.h"
 
 #define FPSerial Serial2
 
@@ -22,6 +23,19 @@ WiFiClientSecure wifiClient;
 PubSubClient mqttClient(wifiClient);
 
 bool isWet = false;
+
+///////////////////////// SCHEDULED TASKS //////////////////////////////////
+
+void updateSensors(void *parameter) {
+  for (;;) {
+    float temp = getTemperature();         
+    updateRoomTemperature(temp);
+    vTaskDelay(600000 / portTICK_PERIOD_MS);
+  }
+}
+
+
+//////////////////////// END OF SCHEDULED TASKS ////////////////////////////
 
 /////////////////////////// DF Player ///////////////////////////////////////
 
@@ -236,6 +250,15 @@ void setup() {
   delay(2500);  
   connectToFirebase();
   delay(3000);     
+
+  xTaskCreate(
+  updateSensors,
+  "updateSensors",   // Name
+  4096,              // Stack size (increase if needed)
+  NULL,              // Parameter
+  1,                 // Priority
+  NULL               // Task handle
+  );
 }
 
 void loop() {
