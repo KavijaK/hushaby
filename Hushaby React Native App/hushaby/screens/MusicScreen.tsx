@@ -6,17 +6,16 @@ import { FIREBASE_AUTH, FIREBASE_DB } from "../FirebaseConfig";
 import { doc, updateDoc } from "firebase/firestore";
 
 const tracks = [
-  { id: 1, label: "Lullabies & Tunes" },
-  { id: 2, label: "Soothing Song" },
-  { id: 3, label: "Bedtime Music" },
+  { id: "1", label: "Lullabies & Tunes" },
+  { id: "2", label: "Soothing Song" },
+  { id: "3", label: "Bedtime Music" },
 ];
 
 const musicBackground= require("../assets/music.webp");
 
 const MusicScreen = () => {
-  const [currentTrack, setCurrentTrack] = useState<number | null>(null);
-
-  const handlePlay = async (trackId: number) => {
+  const [currentTrack, setCurrentTrack] = useState<string>("off");
+  const handlePlay = async (trackId: string) => {
     const user = FIREBASE_AUTH.currentUser;
 
     if (!user) {
@@ -28,8 +27,8 @@ const MusicScreen = () => {
     const userDocRef = doc(FIREBASE_DB, 'users', uid);
 
     const isSameTrack = trackId === currentTrack;
-    const newTrack = isSameTrack ? null : trackId;
-    const playing = !isSameTrack;
+    const newTrack = isSameTrack ? "off" : trackId;
+    const playing = newTrack !== "off";
 
     setCurrentTrack(newTrack); // Update UI
 
@@ -59,7 +58,7 @@ const MusicScreen = () => {
               styles.trackCard,
               currentTrack === track.id && styles.trackCardActive,
             ]}
-            onPress={() => handlePlay(track.id)}
+            onPress={() => handlePlay(String(track.id))}
             activeOpacity={0.8}
           >
             <LinearGradient

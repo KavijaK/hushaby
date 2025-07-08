@@ -162,7 +162,7 @@ const DashboardScreen = () => {
                 </LinearGradient>
                 <Text style={styles.levelBarPercentWide}>{cradleWetness}%</Text>
               </View>
-              <Text style={styles.levelDesc}>{cradleWetness > 80 ? "Change Soon!" : "All Good"}</Text>
+              <Text style={styles.levelDesc}>{cradleWetness > 60 ? "Change Soon!" : "All Good"}</Text>
             </View>
           </View>
 
